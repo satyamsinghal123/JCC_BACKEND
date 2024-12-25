@@ -28,7 +28,9 @@ app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 
 
-
+app.get("/" , (req , res)=>{
+  res.send("Working")
+})
 
 
 //route for storing latest update in DB
