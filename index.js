@@ -24,6 +24,7 @@ app.use(express.json());
 app.use(cors());
 
 
+
 // Middleware to parse URL-encoded data
 app.use(express.urlencoded({ extended: true }));
 
@@ -53,10 +54,15 @@ app.post("/clubandsociety", upload.single('image'), (req, res) => {
     });
     
 //Route for read dat from DB
-app.get("/allclubs" , async(req,res)=>{
-  let allclubs = await LatestUpdatemodel.find({})
-  res.json(allclubs)
-})
+app.get("/allclubs", async (req, res) => {
+  try {
+    let allclubs = await ClubandSocietymodel.find({});
+    res.json(allclubs);
+  } catch (error) {
+    console.error("Error fetching clubs:", error);
+    res.status(500).send({ error: "Failed to fetch clubs" });
+  }
+});
 
 
 
