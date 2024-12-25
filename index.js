@@ -11,7 +11,7 @@ const multer  = require('multer')
 const upload = multer({ storage })
 
 //models 
-const LatestUpdatemodel = require("../Backend/model/ClubandSocietymodel");
+const LatestUpdatemodel = require("../Backend/model/LatestUpdatemodel");
 const ClubandSocietymodel = require("../Backend/model/ClubandSocietymodel");
 
 
