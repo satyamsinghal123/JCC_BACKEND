@@ -13,6 +13,7 @@ const upload = multer({ storage });
 //models
 const Happeningmodel = require("./model/Happeningmodel");
 const ClubandSocietymodel = require("./model/ClubandSocietymodel");
+const Announcementmodel = require("./model/Announcementmodel")
 
 // Parse application/json
 app.use(bodyParser.json());
@@ -60,6 +61,25 @@ app.post("/happening", upload.single("image"), (req, res) => {
   happening.save();
 });
 
+app.post("/announcement", async (req, res) => {
+  const data = req.body;
+
+  const newAnnouncement = new Announcementmodel({
+    category: data.category,
+    text: data.text,
+  });
+
+  try {
+    await newAnnouncement.save();
+    res.send("Data Added Successfully");
+  } catch (error) {
+    console.error("Error creating announcement:", error);
+    res.status(500).send({ error: "Failed to create announcement" });
+  }
+});
+
+
+
 //Route for read data from DB
 
 app.get("/allclubs", async (req, res) => {
@@ -77,6 +97,19 @@ app.get("/allhappening", async (req, res) => {
   try {
     let allhappening = await Happeningmodel.find({});
     res.json(allhappening);
+  } catch (error) {
+    console.error("Error fetching clubs:", error);
+    res.status(500).send({ error: "Failed to fetch clubs" });
+  }
+});
+
+
+
+
+app.get("/allannouncement", async (req, res) => {
+  try {
+    let allannouncement = await Announcementmodel.find({});
+    res.json(allannouncement);
   } catch (error) {
     console.error("Error fetching clubs:", error);
     res.status(500).send({ error: "Failed to fetch clubs" });
@@ -169,6 +202,44 @@ app.post("/happeningEdit/:id", async (req, res) => {
 
 
 
+app.post("/announcementEdit/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const announcement = await Announcementmodel.findById(id);
+    if (!announcement) {
+      return res.status(404).send({ error: "Happening not found" });
+    }
+    res.json(announcement);
+  } catch (error) {
+    console.error("Error fetching happening:", error);
+    res.status(500).send({ error: "Failed to fetch happening" });
+  }
+});
+
+
+app.post("/announcement/:id",  async (req, res) => {
+  const { id } = req.params;
+  const { category, text } = req.body; // Extract data from FormData
+
+  console.log(req.body);
+
+  try {
+    const updatedAnnouncement = await Announcementmodel.findByIdAndUpdate(
+      id,
+      { category, text },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedAnnouncement) {
+      return res.status(404).send({ error: "Announcement not found" });
+    }
+
+    res.send("EDITED");
+  } catch (error) {
+    console.error("Error updating Announcement:", error);
+    res.status(500).send({ error: "Failed to update Announcement" });
+  }
+});
 
 // Route for Delete
 
@@ -195,6 +266,21 @@ app.delete("/deletehappening/:id", async (req, res) => {
   try {
     const deletedHappening = await Happeningmodel.findByIdAndDelete(id);
     if (!deletedHappening) {
+      return res.status(404).send({ error: "Club not found" });
+    }
+    res.status(200).send({ message: "Club deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting club:", error);
+    res.status(500).send({ error: "Failed to delete club" });
+  }
+});
+
+
+app.delete("/deleteannouncement/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deletedannouncement = await Announcementmodel.findByIdAndDelete(id);
+    if (!deletedannouncement) {
       return res.status(404).send({ error: "Club not found" });
     }
     res.status(200).send({ message: "Club deleted successfully" });
