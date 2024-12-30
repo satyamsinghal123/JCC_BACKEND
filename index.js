@@ -3,7 +3,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8080; // Changed from 8080 to 3000
 const uri = process.env.MONGO_URL;
 const { storage } = require("./CloudConfig");
 const bodyParser = require("body-parser");
@@ -11,9 +11,11 @@ const multer = require("multer");
 const upload = multer({ storage });
 
 //models
+const EvenSemmodel = require("./model/AllEvenSemmodel")
 const Happeningmodel = require("./model/Happeningmodel");
 const ClubandSocietymodel = require("./model/ClubandSocietymodel");
 const Announcementmodel = require("./model/Announcementmodel")
+
 
 // Parse application/json
 app.use(bodyParser.json());
@@ -79,6 +81,29 @@ app.post("/announcement", async (req, res) => {
 });
 
 
+app.post("/evensem", async (req, res) => {
+  const data = req.body;
+
+  const newevensem = new EvenSemmodel({
+    date : data.date,
+    title : data.title,
+    subtitle : data.subtitle,
+    type : data.type
+  });
+
+  try {
+    await newevensem.save();
+    res.send("Data Added Successfully");
+  } catch (error) {
+    console.error("Error creating EvenSem:", error);
+    res.status(500).send({ error: "Failed to create announcement" });
+  }
+});
+
+
+
+
+
 
 //Route for read data from DB
 
@@ -115,6 +140,20 @@ app.get("/allannouncement", async (req, res) => {
     res.status(500).send({ error: "Failed to fetch clubs" });
   }
 });
+
+
+
+app.get("/allevensem", async (req, res) => {
+  try {
+    let allevensem = await EvenSemmodel.find({});
+    res.json(allevensem);
+  } catch (error) {
+    console.error("Error fetching clubs:", error);
+    res.status(500).send({ error: "Failed to fetch clubs" });
+  }
+});
+
+
 
 //Route for Edit
 app.post("/clubs/:id", upload.single("image"), async (req, res) => {
@@ -260,7 +299,6 @@ app.delete("/deleteclubs/:id", async (req, res) => {
 
 
 
-
 app.delete("/deletehappening/:id", async (req, res) => {
   const { id } = req.params;
   try {
@@ -290,8 +328,58 @@ app.delete("/deleteannouncement/:id", async (req, res) => {
   }
 });
 
+// EvenSem Edit endpoint
+app.post("/evensemEdit/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const evensem = await EvenSemmodel.findById(id);
+    if (!evensem) {
+      return res.status(404).send({ error: "Even Semester entry not found" });
+    }
+    res.json(evensem);
+  } catch (error) {
+    console.error("Error fetching even semester entry:", error);
+    res.status(500).send({ error: "Failed to fetch even semester entry" });
+  }
+});
 
+// EvenSem Update endpoint
+app.post("/evensem/:id", async (req, res) => {
+  const { id } = req.params;
+  const { date, title, subtitle, type } = req.body;
 
+  try {
+    const updatedEvenSem = await EvenSemmodel.findByIdAndUpdate(
+      id,
+      { date, title, subtitle, type },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedEvenSem) {
+      return res.status(404).send({ error: "Even Semester entry not found" });
+    }
+
+    res.send("EDITED");
+  } catch (error) {
+    console.error("Error updating Even Semester entry:", error);
+    res.status(500).send({ error: "Failed to update Even Semester entry" });
+  }
+});
+
+// EvenSem Delete endpoint
+app.delete("/deleteevensem/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deletedEvenSem = await EvenSemmodel.findByIdAndDelete(id);
+    if (!deletedEvenSem) {
+      return res.status(404).send({ error: "Even Semester entry not found" });
+    }
+    res.status(200).send({ message: "Even Semester entry deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting even semester entry:", error);
+    res.status(500).send({ error: "Failed to delete even semester entry" });
+  }
+});
 
 app.listen(PORT, async () => {
   try {
