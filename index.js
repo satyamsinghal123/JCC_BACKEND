@@ -15,6 +15,7 @@ const EvenSemmodel = require("./model/AllEvenSemmodel")
 const Happeningmodel = require("./model/Happeningmodel");
 const ClubandSocietymodel = require("./model/ClubandSocietymodel");
 const Announcementmodel = require("./model/Announcementmodel")
+const Homemodel = require("./model/Homemodel");
 
 
 // Parse application/json
@@ -381,6 +382,123 @@ app.delete("/deleteevensem/:id", async (req, res) => {
   }
 });
 
+// Route for creating home data
+app.post("/home", upload.fields([
+  { name: 'Homebanner', maxCount: 1 },
+  { name: 'bulletinData[0][image]', maxCount: 1 },
+  { name: 'bulletinData[1][image]', maxCount: 1 },
+  { name: 'bulletinData[2][image]', maxCount: 1 },
+  { name: 'bulletinData[3][image]', maxCount: 1 },
+  { name: 'bulletinData[4][image]', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const data = req.body;
+    const files = req.files;
+
+    // Parse bulletinData if it's a string
+    let bulletinData = [];
+    if (typeof data.bulletinData === 'string') {
+      bulletinData = JSON.parse(data.bulletinData);
+    } else if (Array.isArray(data.bulletinData)) {
+      bulletinData = data.bulletinData;
+    }
+
+    // Map through bulletin data and add image paths
+    bulletinData = bulletinData.map((bulletin, index) => {
+      const imageField = `bulletinData[${index}][image]`;
+      return {
+        ...bulletin,
+        image: files[imageField] ? files[imageField][0].path : bulletin.image
+      };
+    });
+
+    const home = new Homemodel({
+      Homebanner: files.Homebanner ? files.Homebanner[0].path : null,
+      bulletinData: bulletinData
+    });
+
+    await home.save();
+    res.status(200).send("Home Data Added Successfully");
+  } catch (error) {
+    console.error("Error creating home data:", error);
+    res.status(500).send({ error: "Failed to create home data", details: error.message });
+  }
+});
+
+app.post("/home/:id", upload.fields([
+  { name: 'Homebanner', maxCount: 1 },
+  { name: 'bulletinData[0][image]', maxCount: 1 },
+  { name: 'bulletinData[1][image]', maxCount: 1 },
+  { name: 'bulletinData[2][image]', maxCount: 1 },
+  { name: 'bulletinData[3][image]', maxCount: 1 },
+  { name: 'bulletinData[4][image]', maxCount: 1 }
+]), async (req, res) => {
+  const { id } = req.params;
+  const data = req.body;
+  const files = req.files;
+
+  try {
+    let updateData = {};
+
+    if (files.Homebanner) {
+      updateData.Homebanner = files.Homebanner[0].path;
+    }
+
+    if (data.bulletinData) {
+      let bulletinData = JSON.parse(data.bulletinData);
+      bulletinData = bulletinData.map((bulletin, index) => {
+        if (files[`bulletinData[${index}][image]`]) {
+          bulletin.image = files[`bulletinData[${index}][image]`][0].path;
+        }
+        return bulletin;
+      });
+      updateData.bulletinData = bulletinData;
+    }
+
+    const updatedHome = await Homemodel.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedHome) {
+      return res.status(404).json({ error: "Home not found" });
+    }
+
+    res.status(200).json({ message: "Home Updated Successfully", data: updatedHome });
+  } catch (error) {
+    console.error("Error updating Home:", error);
+    res.status(500).json({ error: "Failed to update Home", details: error.message });
+  }
+});
+
+
+
+app.get("/allhome", async (req, res) => {
+  try {
+    let allhomes = await Homemodel.find({});
+    res.json(allhomes);
+  } catch (error) {
+    console.error("Error fetching homes:", error);
+    res.status(500).send({ error: "Failed to fetch homes" });
+  }
+});
+
+app.delete("/deletehome/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deletedHome = await Homemodel.findByIdAndDelete(id);
+    if (!deletedHome) {
+      return res.status(404).send({ error: "Home not found" });
+    }
+    res.status(200).send({ message: "Home deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting home:", error);
+    res.status(500).send({ error: "Failed to delete home" });
+  }
+});
+
+
 app.listen(PORT, async () => {
   try {
     await mongoose.connect(uri);
@@ -390,3 +508,4 @@ app.listen(PORT, async () => {
     console.error("Error connecting to the database:", error);
   }
 });
+
