@@ -16,6 +16,7 @@ const Happeningmodel = require("./model/Happeningmodel");
 const ClubandSocietymodel = require("./model/ClubandSocietymodel");
 const Announcementmodel = require("./model/Announcementmodel")
 const Homemodel = require("./model/Homemodel");
+const Usermodel = require("./model/Usermodel")
 
 
 // Parse application/json
@@ -26,6 +27,8 @@ app.use(cors());
 
 // Middleware to parse URL-encoded data
 app.use(express.urlencoded({ extended: true }));
+const bcrypt = require('bcrypt');
+
 
 app.get("/", (req, res) => {
   res.send("Working well");
@@ -42,7 +45,7 @@ app.post("/clubandsociety", upload.single("image"), (req, res) => {
     description: data.description,
   });
 
-  res.send(" Data Added Successfully ");
+  // res.send(" Data Added Successfully ");
 
   newClub.save();
 });
@@ -497,6 +500,38 @@ app.delete("/deletehome/:id", async (req, res) => {
     res.status(500).send({ error: "Failed to delete home" });
   }
 });
+
+// app.get("/newauth",(req,res)=>{
+//   const user = new Usermodel({
+//     name : "satyam",
+//     password : "12345678"
+//   })
+
+//   user.save()
+
+//   res.send("Working well")
+
+// })
+
+
+app.post("/auth", async (req, res) => {
+  const { username, password } = req.body;
+  const pass = password
+  
+  try {
+    const user = await Usermodel.findOne({ name : username  , password : pass});
+    if (user) {
+      
+      res.json({ success: true });
+    } else {
+      res.json({ success: false });
+    }
+  } catch (error) {
+    console.error("Authentication error:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
 
 
 app.listen(PORT, async () => {
