@@ -30,7 +30,7 @@ app.use(express.urlencoded({ extended: true }))
 const bcrypt = require("bcrypt")
 
 app.get("/", (req, res) => {
-  res.send("Working well")
+  res.send("Working Superb")
 })
 
 app.post("/auth", async (req, res) => {
