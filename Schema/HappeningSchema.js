@@ -1,29 +1,24 @@
 const { Schema } = require("mongoose");
 
 const HappeningSchema = new Schema({
-    title : {
-        type : String,
-        required : true
-    },
-    image : {
-        type : String,
-        required : true
-    },
-    depart : {
-        type : String,
-        required : true
-    },
-    
-    start : {
-        type : String,
-        required : true
-    },
-    lastApply : {
-        type : String,
-        required : true
-    },
-    
-    
-})
+  type: {
+    type: String,
+    required: true,
+  },
+  date: {
+    type: String,
+    required: true,
+  },
+  image: {
+    type: String,
+    required: true,
+  },
+  link: {
+    type: String,
+    required: true,
+  }
+  
+  
+});
 
-module.exports = HappeningSchema
+module.exports = HappeningSchema;

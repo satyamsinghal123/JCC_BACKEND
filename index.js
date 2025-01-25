@@ -1,546 +1,620 @@
-require("dotenv").config();
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const app = express();
-const PORT = process.env.PORT || 8080; // Changed from 8080 to 3000
-const uri = process.env.MONGO_URL;
-const { storage } = require("./CloudConfig");
-const bodyParser = require("body-parser");
-const multer = require("multer");
-const upload = multer({ storage });
+require("dotenv").config()
+const express = require("express")
+const mongoose = require("mongoose")
+const cors = require("cors")
+const app = express()
+const PORT = process.env.PORT || 8080
+const uri = process.env.MONGO_URL
+const { storage } = require("./CloudConfig")
+const bodyParser = require("body-parser")
+const multer = require("multer")
+const upload = multer({ storage })
 
 //models
-const EvenSemmodel = require("./model/AllEvenSemmodel")
-const Happeningmodel = require("./model/Happeningmodel");
-const ClubandSocietymodel = require("./model/ClubandSocietymodel");
-const Announcementmodel = require("./model/Announcementmodel")
-const Homemodel = require("./model/Homemodel");
+const Happeningmodel = require("./model/Happeningmodel")
 const Usermodel = require("./model/Usermodel")
-
+const Noticemodel = require("./model/Noticemodel")
+const Thoughtmodel = require("./model/Thoughtmodel")
+const Acheivementmodel = require("./model/Acheivementmodel")
+const RoughAcheivementmodel = require("./model/RoughAcheivement")
+const StudentCornermodel = require("./model/StudentCornermodel")
 
 // Parse application/json
-app.use(bodyParser.json());
+app.use(bodyParser.json())
 
-app.use(express.json());
-app.use(cors());
+app.use(express.json())
+app.use(cors())
 
 // Middleware to parse URL-encoded data
-app.use(express.urlencoded({ extended: true }));
-const bcrypt = require('bcrypt');
-
+app.use(express.urlencoded({ extended: true }))
+const bcrypt = require("bcrypt")
 
 app.get("/", (req, res) => {
-  res.send("Working well");
-});
+  res.send("Working well")
+})
 
-//route for storing latest update in DB
-app.post("/clubandsociety", upload.single("image"), (req, res) => {
-  const data = req.body;
-  const img = req.file.path;
+app.post("/auth", async (req, res) => {
+  const { username, password } = req.body
+  const pass = password
 
-  const newClub = new ClubandSocietymodel({
+  try {
+    const user = await Usermodel.findOne({ name: username, password: pass })
+    if (user) {
+      res.json({ success: true })
+    } else {
+      res.json({ success: false })
+    }
+  } catch (error) {
+    console.error("Authentication error:", error)
+    res.status(500).json({ success: false, error: "Internal server error" })
+  }
+})
+
+//      Notice
+// Create a new notice
+app.post("/notice", async (req, res) => {
+  const data = req.body
+
+  const newNotice = new Noticemodel({
+    type: data.type,
+    message: data.message,
+  })
+
+  try {
+    await newNotice.save()
+    res.send("Notice Added Successfully")
+  } catch (error) {
+    console.error("Error creating notice:", error)
+    res.status(500).send({ error: "Failed to create notice" })
+  }
+})
+
+// Get all notices
+app.get("/allnotices", async (req, res) => {
+  try {
+    const allnotices = await Noticemodel.find({})
+    res.json(allnotices)
+  } catch (error) {
+    console.error("Error fetching notices:", error)
+    res.status(500).send({ error: "Failed to fetch notices" })
+  }
+})
+
+// Edit a notice
+app.post("/noticeEdit/:id", async (req, res) => {
+  const { id } = req.params
+  try {
+    const notice = await Noticemodel.findById(id)
+    if (!notice) {
+      return res.status(404).send({ error: "Notice not found" })
+    }
+    res.json(notice)
+  } catch (error) {
+    console.error("Error fetching notice:", error)
+    res.status(500).send({ error: "Failed to fetch notice" })
+  }
+})
+
+app.post("/notice/:id", async (req, res) => {
+  const { id } = req.params
+  const { type, message } = req.body
+
+  try {
+    const updatedNotice = await Noticemodel.findByIdAndUpdate(id, { type, message }, { new: true, runValidators: true })
+
+    if (!updatedNotice) {
+      return res.status(404).send({ error: "Notice not found" })
+    }
+
+    res.send("EDITED")
+  } catch (error) {
+    console.error("Error updating Notice:", error)
+    res.status(500).send({ error: "Failed to update Notice" })
+  }
+})
+
+// Delete a notice
+app.delete("/deletenotice/:id", async (req, res) => {
+  const { id } = req.params
+  try {
+    const deletedNotice = await Noticemodel.findByIdAndDelete(id)
+    if (!deletedNotice) {
+      return res.status(404).send({ error: "Notice not found" })
+    }
+    res.status(200).send({ message: "Notice deleted successfully" })
+  } catch (error) {
+    console.error("Error deleting notice:", error)
+    res.status(500).send({ error: "Failed to delete notice" })
+  }
+})
+
+// Trigger notification
+app.post("/trigger-notification", (req, res) => {
+  // This route doesn't need to do anything on the server
+  // It's just a trigger for the client-side notification
+  res.status(200).send({ message: "Notification triggered" })
+})
+
+//      Thought
+
+// Create or update thought
+app.post("/thought", async (req, res) => {
+  const { thought } = req.body
+
+  try {
+    const existingThought = await Thoughtmodel.findOne()
+    if (existingThought) {
+      existingThought.thought = thought
+      existingThought.date = new Date()
+      await existingThought.save()
+      res.send("Thought Updated Successfully")
+    } else {
+      const newThought = new Thoughtmodel({
+        thought: thought,
+        date: new Date(),
+      })
+      await newThought.save()
+      res.send("Thought Added Successfully")
+    }
+  } catch (error) {
+    console.error("Error creating/updating thought:", error)
+    res.status(500).send({ error: "Failed to create/update thought" })
+  }
+})
+
+// Get thought
+app.get("/thought", async (req, res) => {
+  try {
+    const thought = await Thoughtmodel.findOne()
+    res.json(thought)
+  } catch (error) {
+    console.error("Error fetching thought:", error)
+    res.status(500).send({ error: "Failed to fetch thought" })
+  }
+})
+
+// Update thought
+app.put("/thought", async (req, res) => {
+  const { thought } = req.body
+
+  try {
+    const updatedThought = await Thoughtmodel.findOneAndUpdate(
+      {},
+      { thought: thought, date: new Date() },
+      { new: true, upsert: true },
+    )
+
+    if (!updatedThought) {
+      return res.status(404).send({ error: "Thought not found" })
+    }
+
+    res.send("Thought Updated Successfully")
+  } catch (error) {
+    console.error("Error updating Thought:", error)
+    res.status(500).send({ error: "Failed to update Thought" })
+  }
+})
+
+// Delete thought
+app.delete("/deletethought/:id", async (req, res) => {
+  const { id } = req.params
+  try {
+    const deletedThought = await Thoughtmodel.findByIdAndDelete(id)
+    if (!deletedThought) {
+      return res.status(404).send({ error: "Thought not found" })
+    }
+    res.status(200).send({ message: "Thought deleted successfully" })
+  } catch (error) {
+    console.error("Error deleting thought:", error)
+    res.status(500).send({ error: "Failed to delete thought" })
+  }
+})
+
+//      Acheievement
+
+// Create a new achievement
+app.post("/achievement", upload.single("img"), async (req, res) => {
+  const data = req.body
+  const img = req.file ? req.file.path : null
+
+  const newAchievement = new Acheivementmodel({
     name: data.name,
-    image: img,
-    description: data.description,
-  });
-
-  // res.send(" Data Added Successfully ");
-
-  newClub.save();
-});
-
-app.post("/happening", upload.single("image"), (req, res) => {
-  const data = req.body;
-  const img = req.file.path;
-
-  const happening = new Happeningmodel({
-    title: data.title,
-    image: img,
-    depart: data.depart,
-    start: data.start,
-    lastApply: data.lastApply
-  });
-
-  res.send(" Data Added Successfully ");
-
-  happening.save();
-});
-
-app.post("/announcement", async (req, res) => {
-  const data = req.body;
-
-  const newAnnouncement = new Announcementmodel({
-    category: data.category,
-    text: data.text,
-  });
+    dept: data.dept,
+    Course: data.Course,
+    img: img,
+    sem: data.sem,
+    desc: data.desc,
+  })
 
   try {
-    await newAnnouncement.save();
-    res.send("Data Added Successfully");
+    // Count the number of existing achievements
+    const count = await Acheivementmodel.countDocuments()
+
+    if (count >= 50) {
+      // If there are already 50 achievements, find the oldest one and delete it
+      const oldestAchievement = await Acheivementmodel.findOne().sort({ _id: 1 })
+      await Acheivementmodel.findByIdAndDelete(oldestAchievement._id)
+    }
+
+    // Save the new achievement
+    await newAchievement.save()
+    res.send("Achievement Added Successfully")
   } catch (error) {
-    console.error("Error creating announcement:", error);
-    res.status(500).send({ error: "Failed to create announcement" });
+    console.error("Error creating achievement:", error)
+    res.status(500).send({ error: "Failed to create achievement" })
   }
-});
+})
 
-
-app.post("/evensem", async (req, res) => {
-  const data = req.body;
-
-  const newevensem = new EvenSemmodel({
-    date : data.date,
-    title : data.title,
-    subtitle : data.subtitle,
-    type : data.type
-  });
-
+// Get all achievements
+app.get("/allachievements", async (req, res) => {
   try {
-    await newevensem.save();
-    res.send("Data Added Successfully");
+    const allAchievements = await Acheivementmodel.find({})
+    res.json(allAchievements)
   } catch (error) {
-    console.error("Error creating EvenSem:", error);
-    res.status(500).send({ error: "Failed to create announcement" });
+    console.error("Error fetching achievements:", error)
+    res.status(500).send({ error: "Failed to fetch achievements" })
   }
-});
+})
 
-
-
-
-
-
-//Route for read data from DB
-
-app.get("/allclubs", async (req, res) => {
+// Edit an achievement
+app.get("/achievementEdit/:id", async (req, res) => {
+  const { id } = req.params
   try {
-    let allclubs = await ClubandSocietymodel.find({});
-    res.json(allclubs);
+    const achievement = await Acheivementmodel.findById(id)
+    if (!achievement) {
+      return res.status(404).send({ error: "Achievement not found" })
+    }
+    res.json(achievement)
   } catch (error) {
-    console.error("Error fetching clubs:", error);
-    res.status(500).send({ error: "Failed to fetch clubs" });
+    console.error("Error fetching achievement:", error)
+    res.status(500).send({ error: "Failed to fetch achievement" })
   }
-});
+})
 
-
-app.get("/allhappening", async (req, res) => {
-  try {
-    let allhappening = await Happeningmodel.find({});
-    res.json(allhappening);
-  } catch (error) {
-    console.error("Error fetching clubs:", error);
-    res.status(500).send({ error: "Failed to fetch clubs" });
-  }
-});
-
-
-
-
-app.get("/allannouncement", async (req, res) => {
-  try {
-    let allannouncement = await Announcementmodel.find({});
-    res.json(allannouncement);
-  } catch (error) {
-    console.error("Error fetching clubs:", error);
-    res.status(500).send({ error: "Failed to fetch clubs" });
-  }
-});
-
-
-
-app.get("/allevensem", async (req, res) => {
-  try {
-    let allevensem = await EvenSemmodel.find({});
-    res.json(allevensem);
-  } catch (error) {
-    console.error("Error fetching clubs:", error);
-    res.status(500).send({ error: "Failed to fetch clubs" });
-  }
-});
-
-
-
-//Route for Edit
-app.post("/clubs/:id", upload.single("image"), async (req, res) => {
-  const { id } = req.params; // Extract club ID from URL
-  const data = req.body; // Get updated club data
+app.put("/achievement/:id", upload.single("img"), async (req, res) => {
+  const { id } = req.params
+  const data = req.body
+  const img = req.file ? req.file.path : undefined
 
   try {
-    // Find the club by ID and update with the request data
-    const updatedClub = await ClubandSocietymodel.findByIdAndUpdate(
+    const updatedAchievement = await Acheivementmodel.findByIdAndUpdate(
       id,
       {
         name: data.name,
-        description: data.description,
-        ...(req.file && {
-          image: req.file.path, // File path from Multer
-        }),
+        dept: data.dept,
+        Course: data.Course,
+        ...(img && { img: img }),
+        sem: data.sem,
+        desc: data.desc,
       },
-      { new: true, runValidators: true } // Return the updated document
-    );
+      { new: true, runValidators: true },
+    )
 
-    if (!updatedClub) {
-      return res.status(404).send({ error: "Club not found" });
+    if (!updatedAchievement) {
+      return res.status(404).send({ error: "Achievement not found" })
     }
 
-    // Redirect to the desired URL after successful update
-    res.send("Edited");
+    res.send("Achievement Updated Successfully")
   } catch (error) {
-    console.error("Error updating club:", error);
-    res.status(500).send({ error: "Failed to update club" });
+    console.error("Error updating Achievement:", error)
+    res.status(500).send({ error: "Failed to update Achievement" })
   }
-});
+})
 
+// Delete an achievement
+app.delete("/deleteachievement/:id", async (req, res) => {
+  const { id } = req.params
+  try {
+    const deletedAchievement = await Acheivementmodel.findByIdAndDelete(id)
+    if (!deletedAchievement) {
+      return res.status(404).send({ error: "Achievement not found" })
+    }
+    res.status(200).send({ message: "Achievement deleted successfully" })
+  } catch (error) {
+    console.error("Error deleting achievement:", error)
+    res.status(500).send({ error: "Failed to delete achievement" })
+  }
+})
 
+//          Happening
 
-app.post("/happening/:id", upload.single("image"), async (req, res) => {
-  const { id } = req.params; // Extract club ID from URL
-  const data = req.body; // Get updated club data
+app.post("/happening", upload.single("image"), async (req, res) => {
+  const data = req.body
+  const img = req.file ? req.file.path : null
 
-  console.log(data)
+  const newHappening = new Happeningmodel({
+    type: data.type,
+    date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" }),
+    image: img,
+    link: data.link || "https://example.com/exam.pdf",
+  })
 
   try {
-    // Find the club by ID and update with the request data
+    await newHappening.save()
+    res.send("Happening Added Successfully")
+  } catch (error) {
+    console.error("Error creating happening:", error)
+    res.status(500).send({ error: "Failed to create happening" })
+  }
+})
+
+app.get("/allhappening", async (req, res) => {
+  try {
+    const allHappenings = await Happeningmodel.find({})
+    res.json(allHappenings)
+  } catch (error) {
+    console.error("Error fetching happenings:", error)
+    res.status(500).send({ error: "Failed to fetch happenings" })
+  }
+})
+
+app.put("/happening/:id", upload.single("image"), async (req, res) => {
+  const { id } = req.params
+  const data = req.body
+  const img = req.file ? req.file.path : undefined
+
+  try {
     const updatedHappening = await Happeningmodel.findByIdAndUpdate(
       id,
       {
-        title: data.title,
-        ...(req.file && {
-          image: req.file.path, // File path from Multer
-        }),
-        depart: data.depart,
-        start: data.start,
-        lastApply: data.lastApply
-
-
+        type: data.type,
+        link: data.link || "https://example.com/exam.pdf",
+        ...(img && { image: img }),
       },
-      { new: true, runValidators: true } // Return the updated document
-    );
+      { new: true, runValidators: true },
+    )
 
     if (!updatedHappening) {
-      return res.status(404).send({ error: "Club not found" });
+      return res.status(404).send({ error: "Happening not found" })
     }
 
-    res.send("EDITED")// Send the updated club as response
+    res.send("Happening Updated Successfully")
   } catch (error) {
-    console.error("Error updating club:", error);
-    res.status(500).send({ error: "Failed to update club" });
+    console.error("Error updating Happening:", error)
+    res.status(500).send({ error: "Failed to update Happening" })
   }
-});
+})
 
+app.get("/happeningEdit/:id", async (req, res) => {
+  const { id } = req.params
+  try {
+    const happening = await Happeningmodel.findById(id)
+    if (!happening) {
+      return res.status(404).send({ error: "Happening not found" })
+    }
+    res.json(happening)
+  } catch (error) {
+    console.error("Error fetching happening:", error)
+    res.status(500).send({ error: "Failed to fetch happening" })
+  }
+})
 
 app.post("/happeningEdit/:id", async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params
   try {
-    const happening = await Happeningmodel.findById(id);
+    const happening = await Happeningmodel.findById(id)
     if (!happening) {
-      return res.status(404).send({ error: "Happening not found" });
+      return res.status(404).send({ error: "Happening not found" })
     }
-    res.json(happening);
+    res.json(happening)
   } catch (error) {
-    console.error("Error fetching happening:", error);
-    res.status(500).send({ error: "Failed to fetch happening" });
+    console.error("Error fetching happening:", error)
+    res.status(500).send({ error: "Failed to fetch happening" })
   }
-});
-
-
-
-
-app.post("/announcementEdit/:id", async (req, res) => {
-  const { id } = req.params;
-  try {
-    const announcement = await Announcementmodel.findById(id);
-    if (!announcement) {
-      return res.status(404).send({ error: "Happening not found" });
-    }
-    res.json(announcement);
-  } catch (error) {
-    console.error("Error fetching happening:", error);
-    res.status(500).send({ error: "Failed to fetch happening" });
-  }
-});
-
-
-app.post("/announcement/:id",  async (req, res) => {
-  const { id } = req.params;
-  const { category, text } = req.body; // Extract data from FormData
-
-  console.log(req.body);
-
-  try {
-    const updatedAnnouncement = await Announcementmodel.findByIdAndUpdate(
-      id,
-      { category, text },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedAnnouncement) {
-      return res.status(404).send({ error: "Announcement not found" });
-    }
-
-    res.send("EDITED");
-  } catch (error) {
-    console.error("Error updating Announcement:", error);
-    res.status(500).send({ error: "Failed to update Announcement" });
-  }
-});
-
-// Route for Delete
-
-
-app.delete("/deleteclubs/:id", async (req, res) => {
-  const { id } = req.params;
-  try {
-    const deletedClub = await ClubandSocietymodel.findByIdAndDelete(id);
-    if (!deletedClub) {
-      return res.status(404).send({ error: "Club not found" });
-    }
-    res.status(200).send({ message: "Club deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting club:", error);
-    res.status(500).send({ error: "Failed to delete club" });
-  }
-});
-
-
+})
 
 app.delete("/deletehappening/:id", async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params
   try {
-    const deletedHappening = await Happeningmodel.findByIdAndDelete(id);
+    const deletedHappening = await Happeningmodel.findByIdAndDelete(id)
     if (!deletedHappening) {
-      return res.status(404).send({ error: "Club not found" });
+      return res.status(404).send({ error: "Happening not found" })
     }
-    res.status(200).send({ message: "Club deleted successfully" });
+    res.status(200).send({ message: "Happening deleted successfully" })
   } catch (error) {
-    console.error("Error deleting club:", error);
-    res.status(500).send({ error: "Failed to delete club" });
+    console.error("Error deleting happening:", error)
+    res.status(500).send({ error: "Failed to delete happening" })
   }
-});
+})
 
+// Student Corner
 
-app.delete("/deleteannouncement/:id", async (req, res) => {
-  const { id } = req.params;
-  try {
-    const deletedannouncement = await Announcementmodel.findByIdAndDelete(id);
-    if (!deletedannouncement) {
-      return res.status(404).send({ error: "Club not found" });
-    }
-    res.status(200).send({ message: "Club deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting club:", error);
-    res.status(500).send({ error: "Failed to delete club" });
-  }
-});
+// Create a new student corner
+app.post("/studentcorner", upload.single("pdf"), async (req, res) => {
+  const data = req.body
+  const file = req.file
 
-// EvenSem Edit endpoint
-app.post("/evensemEdit/:id", async (req, res) => {
-  const { id } = req.params;
-  try {
-    const evensem = await EvenSemmodel.findById(id);
-    if (!evensem) {
-      return res.status(404).send({ error: "Even Semester entry not found" });
-    }
-    res.json(evensem);
-  } catch (error) {
-    console.error("Error fetching even semester entry:", error);
-    res.status(500).send({ error: "Failed to fetch even semester entry" });
-  }
-});
-
-// EvenSem Update endpoint
-app.post("/evensem/:id", async (req, res) => {
-  const { id } = req.params;
-  const { date, title, subtitle, type } = req.body;
+  const newStudentCorner = new StudentCornermodel({
+    type: data.type,
+    course: data.course,
+    semester: data.semester,
+    title: data.title,
+    date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    link: file ? file.path : "https://example.com/exam.pdf",
+  })
 
   try {
-    const updatedEvenSem = await EvenSemmodel.findByIdAndUpdate(
+    await newStudentCorner.save()
+    res.send("Student Corner Added Successfully")
+  } catch (error) {
+    console.error("Error creating student corner:", error)
+    res.status(500).send({ error: "Failed to create student corner" })
+  }
+})
+
+// Get all student corners
+app.get("/allstudentcorners", async (req, res) => {
+  try {
+    const allStudentCorners = await StudentCornermodel.find({})
+    res.json(allStudentCorners)
+  } catch (error) {
+    console.error("Error fetching student corners:", error)
+    res.status(500).send({ error: "Failed to fetch student corners" })
+  }
+})
+
+// Edit a student corner
+app.get("/studentcornerEdit/:id", async (req, res) => {
+  const { id } = req.params
+  try {
+    const studentCorner = await StudentCornermodel.findById(id)
+    if (!studentCorner) {
+      return res.status(404).send({ error: "Student Corner not found" })
+    }
+    res.json(studentCorner)
+  } catch (error) {
+    console.error("Error fetching student corner:", error)
+    res.status(500).send({ error: "Failed to fetch student corner" })
+  }
+})
+
+app.put("/studentcorner/:id", upload.single("link"), async (req, res) => {
+  const { id } = req.params
+  const data = req.body
+  const file = req.file
+
+  try {
+    const updatedStudentCorner = await StudentCornermodel.findByIdAndUpdate(
       id,
-      { date, title, subtitle, type },
-      { new: true, runValidators: true }
-    );
+      {
+        type: data.type,
+        course: data.course,
+        semester: data.semester,
+        title: data.title,
+        ...(file && { link: file.path }),
+      },
+      { new: true, runValidators: true },
+    )
 
-    if (!updatedEvenSem) {
-      return res.status(404).send({ error: "Even Semester entry not found" });
+    if (!updatedStudentCorner) {
+      return res.status(404).send({ error: "Student Corner not found" })
     }
 
-    res.send("EDITED");
+    res.send("Student Corner Updated Successfully")
   } catch (error) {
-    console.error("Error updating Even Semester entry:", error);
-    res.status(500).send({ error: "Failed to update Even Semester entry" });
+    console.error("Error updating Student Corner:", error)
+    res.status(500).send({ error: "Failed to update Student Corner" })
   }
-});
+})
 
-// EvenSem Delete endpoint
-app.delete("/deleteevensem/:id", async (req, res) => {
-  const { id } = req.params;
+// Delete a student corner
+app.delete("/deletestudentcorner/:id", async (req, res) => {
+  const { id } = req.params
   try {
-    const deletedEvenSem = await EvenSemmodel.findByIdAndDelete(id);
-    if (!deletedEvenSem) {
-      return res.status(404).send({ error: "Even Semester entry not found" });
+    const deletedStudentCorner = await StudentCornermodel.findByIdAndDelete(id)
+    if (!deletedStudentCorner) {
+      return res.status(404).send({ error: "Student Corner not found" })
     }
-    res.status(200).send({ message: "Even Semester entry deleted successfully" });
+    res.status(200).send({ message: "Student Corner deleted successfully" })
   } catch (error) {
-    console.error("Error deleting even semester entry:", error);
-    res.status(500).send({ error: "Failed to delete even semester entry" });
+    console.error("Error deleting student corner:", error)
+    res.status(500).send({ error: "Failed to delete student corner" })
   }
-});
+})
 
-// Route for creating home data
-app.post("/home", upload.fields([
-  { name: 'Homebanner', maxCount: 1 },
-  { name: 'bulletinData[0][image]', maxCount: 1 },
-  { name: 'bulletinData[1][image]', maxCount: 1 },
-  { name: 'bulletinData[2][image]', maxCount: 1 },
-  { name: 'bulletinData[3][image]', maxCount: 1 },
-  { name: 'bulletinData[4][image]', maxCount: 1 }
-]), async (req, res) => {
-  try {
-    const data = req.body;
-    const files = req.files;
+// RoughAchievement routes
 
-    // Parse bulletinData if it's a string
-    let bulletinData = [];
-    if (typeof data.bulletinData === 'string') {
-      bulletinData = JSON.parse(data.bulletinData);
-    } else if (Array.isArray(data.bulletinData)) {
-      bulletinData = data.bulletinData;
-    }
+// Create a new rough achievement
+app.post("/roughachievement", upload.single("img"), async (req, res) => {
+  const data = req.body
+  const img = req.file ? req.file.path : null
 
-    // Map through bulletin data and add image paths
-    bulletinData = bulletinData.map((bulletin, index) => {
-      const imageField = `bulletinData[${index}][image]`;
-      return {
-        ...bulletin,
-        image: files[imageField] ? files[imageField][0].path : bulletin.image
-      };
-    });
-
-    const home = new Homemodel({
-      Homebanner: files.Homebanner ? files.Homebanner[0].path : null,
-      bulletinData: bulletinData
-    });
-
-    await home.save();
-    res.status(200).send("Home Data Added Successfully");
-  } catch (error) {
-    console.error("Error creating home data:", error);
-    res.status(500).send({ error: "Failed to create home data", details: error.message });
-  }
-});
-
-app.post("/home/:id", upload.fields([
-  { name: 'Homebanner', maxCount: 1 },
-  { name: 'bulletinData[0][image]', maxCount: 1 },
-  { name: 'bulletinData[1][image]', maxCount: 1 },
-  { name: 'bulletinData[2][image]', maxCount: 1 },
-  { name: 'bulletinData[3][image]', maxCount: 1 },
-  { name: 'bulletinData[4][image]', maxCount: 1 }
-]), async (req, res) => {
-  const { id } = req.params;
-  const data = req.body;
-  const files = req.files;
+  const newRoughAchievement = new RoughAcheivementmodel({
+    name: data.name,
+    dept: data.dept,
+    Course: data.Course,
+    img: img,
+    sem: data.sem,
+    desc: data.desc,
+    type: data.type,
+  })
 
   try {
-    let updateData = {};
-
-    if (files.Homebanner) {
-      updateData.Homebanner = files.Homebanner[0].path;
-    }
-
-    if (data.bulletinData) {
-      let bulletinData = JSON.parse(data.bulletinData);
-      bulletinData = bulletinData.map((bulletin, index) => {
-        if (files[`bulletinData[${index}][image]`]) {
-          bulletin.image = files[`bulletinData[${index}][image]`][0].path;
-        }
-        return bulletin;
-      });
-      updateData.bulletinData = bulletinData;
-    }
-
-    const updatedHome = await Homemodel.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedHome) {
-      return res.status(404).json({ error: "Home not found" });
-    }
-
-    res.status(200).json({ message: "Home Updated Successfully", data: updatedHome });
+    await newRoughAchievement.save()
+    res.send("Rough Achievement Added Successfully")
   } catch (error) {
-    console.error("Error updating Home:", error);
-    res.status(500).json({ error: "Failed to update Home", details: error.message });
+    console.error("Error creating rough achievement:", error)
+    res.status(500).send({ error: "Failed to create rough achievement" })
   }
-});
+})
 
-
-
-app.get("/allhome", async (req, res) => {
+// Get all rough achievements
+app.get("/allroughachievements", async (req, res) => {
   try {
-    let allhomes = await Homemodel.find({});
-    res.json(allhomes);
+    const allRoughAchievements = await RoughAcheivementmodel.find({})
+    res.json(allRoughAchievements)
   } catch (error) {
-    console.error("Error fetching homes:", error);
-    res.status(500).send({ error: "Failed to fetch homes" });
+    console.error("Error fetching rough achievements:", error)
+    res.status(500).send({ error: "Failed to fetch rough achievements" })
   }
-});
+})
 
-app.delete("/deletehome/:id", async (req, res) => {
-  const { id } = req.params;
+// Get a single rough achievement
+app.get("/roughachievement/:id", async (req, res) => {
+  const { id } = req.params
   try {
-    const deletedHome = await Homemodel.findByIdAndDelete(id);
-    if (!deletedHome) {
-      return res.status(404).send({ error: "Home not found" });
+    const roughAchievement = await RoughAcheivementmodel.findById(id)
+    if (!roughAchievement) {
+      return res.status(404).send({ error: "Rough Achievement not found" })
     }
-    res.status(200).send({ message: "Home deleted successfully" });
+    res.json(roughAchievement)
   } catch (error) {
-    console.error("Error deleting home:", error);
-    res.status(500).send({ error: "Failed to delete home" });
+    console.error("Error fetching rough achievement:", error)
+    res.status(500).send({ error: "Failed to fetch rough achievement" })
   }
-});
+})
 
-// app.get("/newauth",(req,res)=>{
-//   const user = new Usermodel({
-//     name : "satyam",
-//     password : "12345678"
-//   })
-
-//   user.save()
-
-//   res.send("Working well")
-
-// })
-
-
-app.post("/auth", async (req, res) => {
-  const { username, password } = req.body;
-  const pass = password
-  
+// Delete a rough achievement
+app.delete("/deleteroughachievement/:id", async (req, res) => {
+  const { id } = req.params
   try {
-    const user = await Usermodel.findOne({ name : username  , password : pass});
-    if (user) {
-      
-      res.json({ success: true });
-    } else {
-      res.json({ success: false });
+    const deletedRoughAchievement = await RoughAcheivementmodel.findByIdAndDelete(id)
+    if (!deletedRoughAchievement) {
+      return res.status(404).send({ error: "Rough Achievement not found" })
     }
+    res.status(200).send({ message: "Rough Achievement deleted successfully" })
   } catch (error) {
-    console.error("Authentication error:", error);
-    res.status(500).json({ success: false, error: "Internal server error" });
+    console.error("Error deleting rough achievement:", error)
+    res.status(500).send({ error: "Failed to delete rough achievement" })
   }
-});
+})
 
+// Achieve a rough achievement
+app.post("/achieveroughachievement/:id", async (req, res) => {
+  const { id } = req.params
+  try {
+    const roughAchievement = await RoughAcheivementmodel.findById(id)
+    if (!roughAchievement) {
+      return res.status(404).send({ error: "Rough Achievement not found" })
+    }
 
+    const newAchievement = new Acheivementmodel({
+      name: roughAchievement.name,
+      dept: roughAchievement.dept,
+      Course: roughAchievement.Course,
+      img: roughAchievement.img,
+      sem: roughAchievement.sem,
+      desc: roughAchievement.desc,
+      type: roughAchievement.type,
+    })
+
+    await newAchievement.save()
+    await RoughAcheivementmodel.findByIdAndDelete(id)
+
+    res.status(200).send({ message: "Rough Achievement successfully achieved and moved to Achievements" })
+  } catch (error) {
+    console.error("Error achieving rough achievement:", error)
+    res.status(500).send({ error: "Failed to achieve rough achievement" })
+  }
+})
 
 app.listen(PORT, async () => {
   try {
-    await mongoose.connect(uri);
-    console.log("DB connected");
-    console.log(`App is listening on Port ${PORT}`);
+    await mongoose.connect(uri)
+    console.log("DB connected")
+    console.log(`App is listening on Port ${PORT}`)
   } catch (error) {
-    console.error("Error connecting to the database:", error);
+    console.error("Error connecting to the database:", error)
   }
-});
+})
 
