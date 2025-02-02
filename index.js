@@ -346,10 +346,13 @@ app.post("/achievement", upload.single("img"), async (req, res) => {
     name: data.name,
     dept: data.dept,
     Course: data.Course,
+    type : data.type,
     img: img,
     sem: data.sem,
     desc: data.desc,
   });
+
+
 
   try {
     // Count the number of existing achievements
