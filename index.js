@@ -446,6 +446,16 @@ app.delete("/deleteachievement/:id", async (req, res) => {
   }
 });
 
+app.get("/latestachievement", async (req, res) => {
+  try {
+    const latestAchievement = await Acheivementmodel.findOne().sort({ _id: -1 })
+    res.json(latestAchievement)
+  } catch (error) {
+    console.error("Error fetching latest achievement:", error)
+    res.status(500).send({ error: "Failed to fetch latest achievement" })
+  }
+})
+
 //          Happening
 
 app.post("/happening", upload.single("image"), async (req, res) => {
